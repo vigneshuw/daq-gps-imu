@@ -1,0 +1,6 @@
+{
+  "pi": [4, 5],
+  "description": "Configure the serial port to receive GPS data",
+  "verification": false,
+  "num_arguments": 0
+}
