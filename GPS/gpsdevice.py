@@ -11,14 +11,23 @@ import serial
 
 class GPSPoller(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, save_dir_time):
         threading.Thread.__init__(self)
+
+        # Configure the GPS unit
+        gpsc = GPSCommandSender(baudrate=9600)
+        # Update GPS DAQ params
+        gpsc.send_command("rate-10")
+        time.sleep(1)
+        gpsc.send_command("baud-115200")
+
         self.gpsd = gps.gps(mode=gps.WATCH_ENABLE)
         self.running = False
 
         # Time Management
         self.start_time = None
         self.stop_time = None
+        self.save_dir_time = save_dir_time
 
         # Metadata
         self.current_save_dir = None
@@ -29,7 +38,7 @@ class GPSPoller(threading.Thread):
         self.metadata["start_time"] = self.start_time
 
         # Make directories
-        self.current_save_dir = "/sensor_data" + "/" + str(round(self.start_time))
+        self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
         if not os.path.exists(self.current_save_dir):
             os.makedirs(self.current_save_dir)
 
@@ -38,8 +47,6 @@ class GPSPoller(threading.Thread):
                 gps_info = self.gpsd.next()
                 # Serialize and store data
                 pickle.dump(gps_info, fh, protocol=pickle.HIGHEST_PROTOCOL)
-
-                print(gps_info)
 
     def start_polling(self):
         if not self.running:

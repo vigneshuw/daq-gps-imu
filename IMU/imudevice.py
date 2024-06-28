@@ -3,9 +3,9 @@ import sys
 import threading
 import time
 import os
-import pickle
+from utils import FileWriter
 from queue import Queue
-from IMU.lsm6dsl import LSM6DSL
+from . import lsm6dsl
 
 # lsm6dsl = LSM6DSL()
 # # Initialize device
@@ -37,9 +37,9 @@ from IMU.lsm6dsl import LSM6DSL
 
 
 class IMUPoller(threading.Thread):
-    def __init__(self, bus=0, device=0, max_speed_hz=10000000, drdy_pin=24):
+    def __init__(self, save_dir_time, bus=0, device=0, max_speed_hz=10000000, drdy_pin=24):
         threading.Thread.__init__(self)
-        self.imu_device = LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
+        self.imu_device = lsm6dsl.LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
 
         self.running = False
         self.data_queue = Queue()
@@ -48,6 +48,7 @@ class IMUPoller(threading.Thread):
         # Time Management
         self.start_time = None
         self.stop_time = None
+        self.save_dir_time = save_dir_time
 
         # Metadata
         self.current_save_dir = None
@@ -65,14 +66,14 @@ class IMUPoller(threading.Thread):
 
         # Store data in queue
         self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
-        print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
+        # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
         self.start_time = time.time()
         self.metadata["start_time"] = self.start_time
 
         # Make directories
-        self.current_save_dir = "/sensor_data" + "/" + str(round(self.start_time))
+        self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
         if not os.path.exists(self.current_save_dir):
             os.makedirs(self.current_save_dir)
         output_file = os.path.join(self.current_save_dir, "imu.dat")
@@ -121,23 +122,3 @@ class IMUPoller(threading.Thread):
                 fh.write(json_string + "\n")
 
             self.join()
-
-
-class FileWriter(threading.Thread):
-    def __init__(self, data_queue, output_file, write_interval=60):
-        threading.Thread.__init__(self)
-        self.data_queue = data_queue
-        self.output_file = output_file
-        self.running = True
-        self.write_interval = write_interval
-
-    def run(self):
-        with open(self.output_file, "a") as fh:
-            while self.running:
-                time.sleep(self.write_interval)
-                while not self.data_queue.empty():
-                    fh.write(self.data_queue.get())
-                fh.flush()
-
-    def stop(self):
-        self.running = False

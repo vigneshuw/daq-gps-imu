@@ -3,6 +3,7 @@ import struct
 import gpiod
 import time
 
+
 class LSM6DSL:
     # Find device
     WHO_AM_I = 0x0F
