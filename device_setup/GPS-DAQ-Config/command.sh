@@ -37,6 +37,13 @@ else
     echo 'GPSD_OPTIONS="--speed 115200"' | sudo tee -a "$GPSD_CONFIG"
 fi
 
+# Enable SPI interface
+if ! grep -q "^dtparam=spi=on" /boot/firmware/config.txt; then
+  echo "Enabling SPI interface."
+  echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt
+else
+  echo "SPI interface is already enabled."
+fi
 
 # Enable autostart
 sudo systemctl enable gpsd.socket
