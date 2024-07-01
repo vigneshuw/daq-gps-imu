@@ -1,7 +1,8 @@
 import spidev
 import struct
-import gpiod
+import RPi.GPIO as GPIO
 import time
+import sys
 
 
 class LSM6DSL:
@@ -44,9 +45,12 @@ class LSM6DSL:
 
         # GPIO setup for data ready pin
         self.drdy_pin = drdy_pin
-        self.chip = gpiod.Chip('gpiochip4', gpiod.Chip.OPEN_BY_NAME)
-        self.line = self.chip.get_line(self.drdy_pin)
-        self.line.request(consumer="LSM6DSL", type=gpiod.LINE_REQ_DIR_IN)
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(self.drdy_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        except RuntimeError as e:
+            sys.stderr.write(f"Error setting up GPIO: {e}\n")
+            sys.exit(1)
 
     def open(self):
         self.spi.open(self.spi_bus, self.spi_dev)
@@ -68,9 +72,9 @@ class LSM6DSL:
         time.sleep(0.1)
 
         # Initialize the sensor
-        self.write_register(self.CTRL1_XL, 0x97)     # ODR 3.33 kHz, +/- 16g, BW=400Hz
+        self.write_register(self.CTRL1_XL, 0x77)     # ODR 3.33 kHz, +/- 16g, BW=400Hz
         self.write_register(self.CTRL8_XL, 0xC8)     # Low pass filter enabled, BW9, composite filter
-        self.write_register(self.CTRL2_G, 0x9C)      # ODR 3.3 kHz, 2000 dps
+        self.write_register(self.CTRL2_G, 0x7C)      # ODR 3.3 kHz, 2000 dps
         self.write_register(self.CTRL3_C, 0x44)      # BDU=1, IF_INC=1
 
         # Enable accelerometer and gyroscope
@@ -99,7 +103,7 @@ class LSM6DSL:
 
     def close(self):
         self.spi.close()
-        self.line.release()
+        GPIO.cleanup(self.drdy_pin)
 
     def detect_device(self):
 

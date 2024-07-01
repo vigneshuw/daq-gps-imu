@@ -5,6 +5,7 @@ import time
 import os
 from utils import FileWriter
 from queue import Queue
+import RPi.GPIO as GPIO
 from . import lsm6dsl
 
 # lsm6dsl = LSM6DSL()
@@ -87,7 +88,7 @@ class IMUPoller(threading.Thread):
         self.file_writer_thread.start()
 
         while self.running:
-            if self.imu_device.line.get_value() == 1:
+            if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
 
         self.file_writer_thread.stop()
