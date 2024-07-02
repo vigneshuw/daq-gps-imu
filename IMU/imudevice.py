@@ -42,9 +42,9 @@ class IMUPoller(threading.Thread):
                 ay = struct.unpack('<h', bytes(fifo_data[i + 8:i + 10]))[0]
                 az = struct.unpack('<h', bytes(fifo_data[i + 10:i + 12]))[0]
 
-                ax_g = ax * 0.000061
-                ay_g = ay * 0.000061
-                az_g = az * 0.000061
+                ax_g = ax * 0.000488
+                ay_g = ay * 0.000488
+                az_g = az * 0.000488
 
                 self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
                 print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
