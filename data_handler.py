@@ -28,7 +28,7 @@ class DataHandler:
 
         # Buttons
         self.button_daq = ButtonHandler(pin=16, on_button_held_callback=self.start_daq,
-                                        on_button_released_callback=self.stop_daq, press_duration=5)
+                                        on_button_released_callback=self.stop_daq, press_duration=2)
 
     def start_daq(self):
 

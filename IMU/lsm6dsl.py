@@ -13,6 +13,7 @@ class LSM6DSL:
     CTRL1_XL = 0x10
     CTRL2_G = 0x11
     CTRL3_C = 0x12
+    CTRL4_C = 0x13
     CTRL8_XL = 0x17
 
     # Data Registers
@@ -35,6 +36,22 @@ class LSM6DSL:
 
     # INT2
     INT2_CTRL = 0x0E
+
+    # FIFO
+    # Control
+    FIFO_CTRL1 = 0x06
+    FIFO_CTRL2 = 0x07
+    FIFO_CTRL3 = 0x08
+    FIFO_CTRL4 = 0x09
+    FIFO_CTRL5 = 0x0A
+    # Status
+    FIFO_STATUS1 = 0x3A
+    FIFO_STATUS2 = 0x3B
+    FIFO_STATUS3 = 0x3C
+    FIFO_STATUS4 = 0x3D
+    # Data Read
+    FIFO_DATA_OUT_L = 0x3E
+    FIFO_DATA_OUT_H = 0x3F
 
     def __init__(self, spi_bus=0, spi_dev=0, speed=10000000, drdy_pin=24):
         # Initialization
@@ -72,17 +89,25 @@ class LSM6DSL:
         time.sleep(0.1)
 
         # Initialize the sensor
-        self.write_register(self.CTRL1_XL, 0x77)     # ODR 3.33 kHz, +/- 16g, BW=400Hz
+        self.write_register(self.CTRL1_XL, 0x77)     # ODR 0.83 kHz, +/- 16g, BW=400Hz
         self.write_register(self.CTRL8_XL, 0xC8)     # Low pass filter enabled, BW9, composite filter
-        self.write_register(self.CTRL2_G, 0x7C)      # ODR 3.3 kHz, 2000 dps
+        self.write_register(self.CTRL2_G, 0x7C)      # ODR 0.83 kHz, 2000 dps
         self.write_register(self.CTRL3_C, 0x44)      # BDU=1, IF_INC=1
+        self.write_register(self.CTRL4_C, 0x04)      # Enable data-ready interrupt
 
         # Enable accelerometer and gyroscope
         self.write_register(self.CTRL9_XL, 0x38)  # Enable X, Y, Z axes of accelerometer
         self.write_register(self.CTRL10_C, 0x38)  # Enable X, Y, Z axes of gyroscope
 
+        # Configure FIFO Control
+        self.write_register(self.FIFO_CTRL1, 0x80)
+        self.write_register(self.FIFO_CTRL2, 0x07)
+        self.write_register(self.FIFO_CTRL3, 0x09)
+        self.write_register(self.FIFO_CTRL4, 0x00)
+        self.write_register(self.FIFO_CTRL5, 0x3E)
+
         # Data ready interrupt
-        self.write_register(self.INT2_CTRL, 0x03)
+        self.write_register(self.INT2_CTRL, 0x08)
 
     def read_bulk_data(self):
 
@@ -100,6 +125,20 @@ class LSM6DSL:
         az = struct.unpack('<h', bytes(raw_data[10:12]))[0]
 
         return (gx, gy, gz), (ax, ay, az)
+
+    def read_fifo_status(self):
+        status1 = self.read_register(self.FIFO_STATUS1)
+        status2 = self.read_register(self.FIFO_STATUS2)
+        status3 = self.read_register(self.FIFO_STATUS3)
+        status4 = self.read_register(self.FIFO_STATUS4)
+        return status1, status2, status3, status4
+
+    def read_fifo_data(self, num_words):
+        num_bytes = num_words * 2
+        return self.spi.xfer2([self.FIFO_DATA_OUT_L | 0x80] + [0x00] * num_bytes)[1:]
+
+    def read_fifo_word(self):
+        return self.spi.xfer2([self.FIFO_DATA_OUT_L | 0x80, 0x00, 0x00])[1:]
 
     def close(self):
         self.spi.close()

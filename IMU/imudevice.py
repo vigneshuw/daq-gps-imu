@@ -3,6 +3,7 @@ import sys
 import threading
 import time
 import os
+import struct
 import RPi.GPIO as GPIO
 from queue import Queue
 from . import lsm6dsl
@@ -27,18 +28,26 @@ class IMUPoller(threading.Thread):
         self.metadata = {}
 
     def data_ready_callback(self):
-        gyro_data, accel_data = self.imu_device.read_gyro_accel()
-        gx, gy, gz = gyro_data
-        ax, ay, az = accel_data
+        status1, status2, status3, status4 = self.imu_device.read_fifo_status()
+        num_words = (status2 & 0x0F) << 8 | status1
 
-        # Convert to human readable values
-        ax_g = ax * 0.000488
-        ay_g = ay * 0.000488
-        az_g = az * 0.000488
+        if num_words > 0:
+            fifo_data = self.imu_device.read_fifo_data(num_words)
 
-        # Store data in queue
-        self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
-        # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
+            for i in range(0, len(fifo_data), 12):
+                gx = struct.unpack('<h', bytes(fifo_data[i:i + 2]))[0]
+                gy = struct.unpack('<h', bytes(fifo_data[i + 2:i + 4]))[0]
+                gz = struct.unpack('<h', bytes(fifo_data[i + 4:i + 6]))[0]
+                ax = struct.unpack('<h', bytes(fifo_data[i + 6:i + 8]))[0]
+                ay = struct.unpack('<h', bytes(fifo_data[i + 8:i + 10]))[0]
+                az = struct.unpack('<h', bytes(fifo_data[i + 10:i + 12]))[0]
+
+                ax_g = ax * 0.000061
+                ay_g = ay * 0.000061
+                az_g = az * 0.000061
+
+                self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
+                print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
         self.start_time = time.time()
@@ -52,11 +61,11 @@ class IMUPoller(threading.Thread):
         if not self.running:
             # Configure sensor and initiate
             self.imu_device.open()
-            self.imu_device.configure_sensor()
             time.sleep(1)
             self.running = self.imu_device.detect_device()
             if self.running:
                 self.start()
+                self.imu_device.configure_sensor()
                 return True
             else:
                 sys.stdout.write("IMU Device not detected. DAQ Process not started\n")
