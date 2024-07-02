@@ -25,11 +25,9 @@ class ButtonHandler:
         if not self.button_held and press_duration > self.press_duration:
             self.button_held = True
             self.on_button_held()
-            print("Button pressed")
         elif self.button_held and press_duration > self.press_duration:
             self.button_held = False
             self.on_button_released()
-            print("Button released")
 
     def on_button_held(self):
         if self.on_button_held_callback:

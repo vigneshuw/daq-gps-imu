@@ -44,7 +44,7 @@ class DataHandler:
         self.imu_poller.start_polling()
 
         self.daq_status = True
-        sys.stdout.write("Data collection in progress")
+        sys.stdout.write("Data collection in progress\n")
 
     def stop_daq(self):
         # Stop the DAQ process
@@ -52,4 +52,4 @@ class DataHandler:
         self.imu_poller.stop_polling()
 
         self.daq_status = False
-        sys.stdout.write("Data collection stopped")
+        sys.stdout.write("Data collection stopped\n")

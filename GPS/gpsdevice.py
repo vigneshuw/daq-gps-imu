@@ -59,12 +59,15 @@ class GPSPoller(threading.Thread):
             self.stop_time = time.time()
             self.metadata["stop_time"] = self.stop_time
 
+            self.join()
+
             # Write the metadata
             with open(self.current_save_dir + "/" + "gps.meta", "w") as fh:
                 json_string = json.dumps(self.metadata)
                 fh.write(json_string + "\n")
 
-            self.join()
+    def stop(self):
+        self.running = False
 
 
 class GPSCommandSender:

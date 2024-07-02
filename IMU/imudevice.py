@@ -1,40 +1,13 @@
 import json
 import sys
+import multiprocessing as mp
 import threading
 import time
 import os
-from utils import FileWriter
+import utils
 from queue import Queue
 import RPi.GPIO as GPIO
 from . import lsm6dsl
-
-# lsm6dsl = LSM6DSL()
-# # Initialize device
-# lsm6dsl.open()
-# lsm6dsl.configure_sensor()
-# lsm6dsl.detect_device()
-#
-# try:
-#     while True:
-#         gyro_data, accel_data = lsm6dsl.read_gyro_accel()
-#         gx, gy, gz = gyro_data
-#         ax, ay, az = accel_data
-#
-#         # Convert to signed values (already handled by struct.unpack)
-#         # Convert raw accelerometer values to g's (assuming full-scale range of ±2g)
-#         ax_g = ax * 0.000488
-#         ay_g = ay * 0.000488
-#         az_g = az * 0.000488
-#
-#         # print(f"Gyroscope - X: {gx}, Y: {gy}, Z: {gz}")
-#         print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
-#
-#         time.sleep(1 / 3300)  # Sleep for the period of 3.3 kHz sampling rate
-#
-# except KeyboardInterrupt:
-#     print("\nExiting...")
-# finally:
-#     lsm6dsl.close()
 
 
 class IMUPoller(threading.Thread):
@@ -44,7 +17,7 @@ class IMUPoller(threading.Thread):
 
         self.running = False
         self.data_queue = Queue()
-        self.file_writer_thread = None
+        self.file_writer_process = None
 
         # Time Management
         self.start_time = None
@@ -84,14 +57,14 @@ class IMUPoller(threading.Thread):
             fh.write("gx,gy,gz,ax_g,ay_g,az_g\n")
 
         # Start the writing file thread
-        self.file_writer_thread = FileWriter(self.data_queue, output_file)
-        self.file_writer_thread.start()
+        self.file_writer_process = mp.Process(target=utils.file_writer, args=(self.data_queue, output_file))
+        self.file_writer_process.start()
 
         while self.running:
             if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
 
-        self.file_writer_thread.stop()
+        self.file_writer_process.terminate()
 
     def start_polling(self):
         if not self.running:
