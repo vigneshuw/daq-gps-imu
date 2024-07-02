@@ -1,12 +1,12 @@
 import json
 import sys
-import multiprocessing as mp
 import threading
 import time
 import os
 import utils
-from queue import Queue
 import RPi.GPIO as GPIO
+from queue import Queue
+import multiprocessing as mp
 from . import lsm6dsl
 
 
@@ -16,7 +16,7 @@ class IMUPoller(threading.Thread):
         self.imu_device = lsm6dsl.LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
 
         self.running = False
-        self.data_queue = Queue()
+        self.data_queue = mp.Queue()
         self.file_writer_process = None
 
         # Time Management
