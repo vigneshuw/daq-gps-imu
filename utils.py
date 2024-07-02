@@ -11,4 +11,3 @@ def file_writer(data_queue, output_file, write_interval=60):
             if batch:
                 fh.write("".join(batch))
                 fh.flush()
-    pass

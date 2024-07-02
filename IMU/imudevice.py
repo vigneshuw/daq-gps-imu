@@ -5,7 +5,8 @@ import time
 import os
 import struct
 import RPi.GPIO as GPIO
-from queue import Queue
+import multiprocessing as mp
+import utils
 from . import lsm6dsl
 
 
@@ -15,7 +16,7 @@ class IMUPoller(threading.Thread):
         self.imu_device = lsm6dsl.LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
 
         self.running = False
-        self.data_queue = Queue()
+        self.data_queue = mp.Queue()
         self.file_writer_process = None
 
         # Time Management
@@ -47,15 +48,31 @@ class IMUPoller(threading.Thread):
                 az_g = az * 0.000488
 
                 self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
-                print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
+                # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
         self.start_time = time.time()
         self.metadata["start_time"] = self.start_time
 
+        # Saving the data periodically - Make directories
+        self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
+        if not os.path.exists(self.current_save_dir):
+            os.makedirs(self.current_save_dir)
+        output_file = os.path.join(self.current_save_dir, "imu.dat")
+
+        # Create file with headers
+        with open(output_file, "w") as fh:
+            fh.write("gx,gy,gz,ax_g,ay_g,az_g\n")
+
+        # Start the writing file thread
+        self.file_writer_process = mp.Process(target=utils.file_writer, args=(self.data_queue, output_file))
+        self.file_writer_process.start()
+
         while self.running:
             if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
+
+        self.file_writer_process.terminate()
 
     def start_polling(self):
         if not self.running:
@@ -80,24 +97,10 @@ class IMUPoller(threading.Thread):
             self.stop_time = time.time()
             self.metadata["stop_time"] = self.stop_time
 
-            # Start the file save process
-            # Make directories
-            self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
-            if not os.path.exists(self.current_save_dir):
-                os.makedirs(self.current_save_dir)
+            # Stop the DAQ
+            self.join()
 
             # Write the metadata
             with open(self.current_save_dir + "/" + "imu.meta", "w") as fh:
                 json_string = json.dumps(self.metadata)
                 fh.write(json_string + "\n")
-
-            self.join()
-
-            # Write all the queued up data
-            output_file = os.path.join(self.current_save_dir, "imu.dat")
-            # Create file with headers
-            with open(output_file, "w") as fh:
-                fh.write("gx,gy,gz,ax_g,ay_g,az_g\n")
-                while not self.data_queue.empty():
-                    fh.write(self.data_queue.get())
-                fh.flush()
