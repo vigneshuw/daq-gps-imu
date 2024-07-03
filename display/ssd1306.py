@@ -14,7 +14,8 @@ class Display:
         # Create device
         serial = i2c(port=i2c_port, address=address)
         self.device = ssd1306(serial)
-        self.font = ImageFont.load_default()
+        self.font = ImageFont.truetype('DejaVuSans.ttf', 11)
+        self.font_large = ImageFont.truetype('DejaVuSans-Bold.ttf', 14)
 
         # Default items
         self.logo_location = logo_loc
@@ -85,9 +86,9 @@ class Display:
         text_x = self.device.width // 2
         text_y = 0
 
-        draw.text((text_x, text_y), f"SD  : {free_memory:.0f}", font=self.font, fill=255)
+        draw.text((text_x, text_y), f"SD   : {free_memory:.0f}", font=self.font, fill=255)
         draw.text((text_x, text_y + 10), f"RAM : {ram_free:.1f}", font=self.font, fill=255)
-        draw.text((text_x, text_y + 20), f"Freq: {clock_freq:.0f}", font=self.font, fill=255)
+        draw.text((text_x, text_y + 20), f"Freq : {clock_freq:.0f}", font=self.font, fill=255)
         draw.text((text_x, text_y + 30), f"Temp: {cpu_temp:.0f}C", font=self.font, fill=255)
         draw.text((text_x, text_y + 50), "Ready!", font=self.font, fill=255)
 
@@ -139,6 +140,54 @@ class Display:
 
             # Draw the text
             draw.text((text_x, text_y), text, font=font, fill=255)
+
+    def display_header_and_status(self, header, status, show_circle=False):
+        final_image = Image.new('1', (self.device.width, self.device.height))
+        draw = ImageDraw.Draw(final_image)
+
+        # Draw header
+        header_width, header_height = draw.textsize(header, font=self.font_large)
+        header_x = (self.device.width - header_width) // 2
+        header_y = 0
+        draw.text((header_x, header_y), header, font=self.font_large, fill=255)
+
+        # Draw status
+        status_width, status_height = draw.textsize(status, font=self.font)
+        status_x = (self.device.width - status_width) // 2
+        status_y = (self.device.height - status_height) // 2
+        draw.text((status_x, status_y), status, font=self.font, fill=255)
+
+        # Optionally draw circle
+        if show_circle:
+            circle_x = self.device.width - 20
+            circle_y = self.device.height - 20
+            draw.ellipse((circle_x, circle_y, circle_x + 15, circle_y + 15), outline=255, fill=0)
+
+        self.device.display(final_image)
+
+    def display_progress(self, header, progress):
+        final_image = Image.new('1', (self.device.width, self.device.height))
+        draw = ImageDraw.Draw(final_image)
+
+        # Draw header
+        header_width, header_height = draw.textsize(header, font=self.font_large)
+        header_x = (self.device.width - header_width) // 2
+        header_y = 0
+        draw.text((header_x, header_y), header, font=self.font_large, fill=255)
+
+        # Draw progress bar
+        bar_width = int(self.device.width * 0.8)
+        bar_height = 10
+        bar_x = (self.device.width - bar_width) // 2
+        bar_y = (self.device.height - bar_height) // 2
+
+        # Draw border
+        draw.rectangle((bar_x, bar_y, bar_x + bar_width, bar_y + bar_height), outline=255, fill=0)
+        # Draw filled part
+        fill_width = int(bar_width * progress)
+        draw.rectangle((bar_x, bar_y, bar_x + fill_width, bar_y + bar_height), outline=255, fill=255)
+
+        self.device.display(final_image)
 
     def add_text(self, text, pos):
         with self.get_canvas() as draw:

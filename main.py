@@ -13,7 +13,7 @@ data_handler = DataHandler(display=oled_display)
 if __name__ == '__main__':
 
     # Initialize the system
-    oled_display.display_centered_text("Initializing...")
+    oled_display.display_header_and_status("System Check", "Initializing...")
     # Data handler
     data_handler.initialize()
 
@@ -22,5 +22,5 @@ if __name__ == '__main__':
         if data_handler.daq_status:
             current_time = time.time()
             elapsed = current_time - data_handler.daq_start
-            oled_display.display_centered_text(f"Elapsed time: {round(elapsed/60)} min")
+            oled_display.display_header_and_status("DAQ", f"Elapsed time: {round(elapsed/60)} min")
         time.sleep(60)
