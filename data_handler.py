@@ -47,6 +47,8 @@ class DataHandler:
         sys.stdout.write("Data collection in progress\n")
 
     def stop_daq(self):
+        sys.stdout.write("Stop DAQ Called\n")
+
         # Stop the DAQ process
         self.gps_poller.stop_polling()
         self.imu_poller.stop_polling()

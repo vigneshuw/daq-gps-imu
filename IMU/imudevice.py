@@ -5,7 +5,7 @@ import time
 import os
 import struct
 import RPi.GPIO as GPIO
-import multiprocessing as mp
+from queue import Queue
 import utils
 from . import lsm6dsl
 
@@ -13,11 +13,11 @@ from . import lsm6dsl
 class IMUPoller(threading.Thread):
     def __init__(self, save_dir_time, bus=0, device=0, max_speed_hz=10000000, drdy_pin=24):
         threading.Thread.__init__(self)
+        self.file_writer_thread = None
         self.imu_device = lsm6dsl.LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
 
         self.running = False
-        self.data_queue = mp.Queue()
-        self.file_writer_process = None
+        self.data_queue = Queue()
 
         # Time Management
         self.start_time = None
@@ -47,7 +47,7 @@ class IMUPoller(threading.Thread):
                 ay_g = ay * 0.000488
                 az_g = az * 0.000488
 
-                self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
+                self.data_queue.put(f"{gx},{gy},{gz},{round(ax_g, 4)},{round(ay_g, 4)},{round(az_g, 4)}\n".encode())
                 # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
@@ -65,14 +65,15 @@ class IMUPoller(threading.Thread):
             fh.write("gx,gy,gz,ax_g,ay_g,az_g\n")
 
         # Start the writing file thread
-        self.file_writer_process = mp.Process(target=utils.file_writer, args=(self.data_queue, output_file))
-        self.file_writer_process.start()
+        self.file_writer_thread = threading.Thread(target=utils.file_writer, args=(self.data_queue, output_file))
+        self.file_writer_thread.start()
 
         while self.running:
             if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
 
-        self.file_writer_process.terminate()
+        self.data_queue.put(None)
+        self.file_writer_thread.join()
 
     def start_polling(self):
         if not self.running:
@@ -93,7 +94,6 @@ class IMUPoller(threading.Thread):
             self.running = False
 
             # Stop the DAQ process
-            self.imu_device.close()
             self.stop_time = time.time()
             self.metadata["stop_time"] = self.stop_time
 
@@ -104,3 +104,5 @@ class IMUPoller(threading.Thread):
             with open(self.current_save_dir + "/" + "imu.meta", "w") as fh:
                 json_string = json.dumps(self.metadata)
                 fh.write(json_string + "\n")
+
+            self.imu_device.close()
