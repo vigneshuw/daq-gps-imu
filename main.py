@@ -5,20 +5,16 @@ from display.ssd1306 import Display
 from data_handler import DataHandler
 
 # Initialize Display
-oled_display = Display()
+oled_display = Display(logo_loc=os.path.join(os.getcwd(), "images", 'uw-logo.png'))
 # Data Handler
 data_handler = DataHandler(display=oled_display)
 
 
 if __name__ == '__main__':
 
-    # Start the display process for device
-    logo_location = os.path.join(os.getcwd(), "images", "uw-logo.png")
-    oled_display.display_image(logo_location)
-    time.sleep(5)
+    # Initialize the system
     oled_display.display_centered_text("Initializing...")
-
-    # Initialize Data handler
+    # Data handler
     data_handler.initialize()
 
     # Wait indefinitely

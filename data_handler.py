@@ -1,5 +1,6 @@
 import time
 import sys
+import os
 from IMU.imudevice import IMUPoller
 from GPS.gpsdevice import GPSPoller
 from button import ButtonHandler
@@ -7,7 +8,6 @@ from button import ButtonHandler
 
 class DataHandler:
     def __init__(self, display, daq_pin=16, transfer_pin=25):
-
 
         # Display
         self.display = display
@@ -33,7 +33,7 @@ class DataHandler:
         self.button_daq = ButtonHandler(pin=16, on_button_held_callback=self.start_daq,
                                         on_button_released_callback=self.stop_daq, press_duration=2)
         # Display ready status
-        self.display.display_centered_text("Ready")
+        self.display.display_system_props()
 
     def start_daq(self):
         self.display.display_centered_text("Initiating DAQ...")
@@ -63,4 +63,5 @@ class DataHandler:
         self.daq_status = False
         self.daq_start = None
         sys.stdout.write("Data collection stopped\n")
-        self.display.display_centered_text("Ready")
+        # Display ready status
+        self.display.display_system_props()
