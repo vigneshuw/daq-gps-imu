@@ -4,10 +4,11 @@ import threading
 import time
 import os
 import struct
+import logging
 import RPi.GPIO as GPIO
 from queue import Queue
 import utils
-from . import lsm6dsl
+from IMU import lsm6dsl
 
 
 class IMUPoller(threading.Thread):
@@ -27,6 +28,9 @@ class IMUPoller(threading.Thread):
         # Metadata
         self.current_save_dir = None
         self.metadata = {}
+
+        # Logging
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def data_ready_callback(self):
         status1, status2, status3, status4 = self.imu_device.read_fifo_status()
@@ -68,9 +72,11 @@ class IMUPoller(threading.Thread):
         self.file_writer_thread = threading.Thread(target=utils.file_writer, args=(self.data_queue, output_file))
         self.file_writer_thread.start()
 
+        self.logger.info("Starting IMU DAQ")
         while self.running:
             if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
+        self.logger.info("Stopping IMU DAQ")
 
         self.data_queue.put(None)
         self.file_writer_thread.join()
@@ -86,7 +92,7 @@ class IMUPoller(threading.Thread):
                 self.imu_device.configure_sensor()
                 return True
             else:
-                sys.stdout.write("IMU Device not detected. DAQ Process not started\n")
+                self.logger.error("IMU Device not detected. DAQ Process not started")
                 return False
 
     def stop_polling(self):

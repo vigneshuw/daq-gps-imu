@@ -3,6 +3,7 @@ import struct
 import RPi.GPIO as GPIO
 import time
 import sys
+import logging
 
 
 class LSM6DSL:
@@ -60,13 +61,16 @@ class LSM6DSL:
         self.speed = speed
         self.spi = spidev.SpiDev()
 
+        # Logging
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         # GPIO setup for data ready pin
         self.drdy_pin = drdy_pin
         try:
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.drdy_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         except RuntimeError as e:
-            sys.stderr.write(f"Error setting up GPIO: {e}\n")
+            self.logger.error(f"Error setting up GPIO: {e}")
             sys.exit(1)
 
     def open(self):
@@ -149,11 +153,11 @@ class LSM6DSL:
         try:
             response = self.read_register(self.WHO_AM_I)
         except IOError as e:
-            print(e)
+            self.logger.error(f"Failed to connect to IMU over SPI: {e}")
             return False
         else:
             if response == 0x6A:
-                print(f"Found BerryGPS-IMU device, Response: {response}")
+                self.logger.info(f"Found BerryGPS-IMU device, Response: {response}")
                 return True
 
         return False

@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import time
+import logging
 
 
 class SensorDataCopier:
@@ -11,6 +12,9 @@ class SensorDataCopier:
 
         # Status display
         self.status_display = status_display
+
+        # Logging
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def is_usb_mounted(self):
         return os.path.ismount(self.usb_mount_point)
@@ -23,6 +27,7 @@ class SensorDataCopier:
     def copy_sensor_data(self):
         if not self.is_usb_mounted():
             self.status_display.display_header_and_status(header="Data Copy", status="USB Not Found!")
+            self.logger.warning("USB Not Found!")
             return
 
         try:
@@ -45,15 +50,11 @@ class SensorDataCopier:
                 # Update progress
                 self.status_display.display_progress("Data Copy", index/num_files)
 
-            sys.stdout.write("Data copy successful\n")
+            self.logger.info("Data copy successful")
             self.status_display.display_header_and_status(header="Data Copy", status="Copy Successful!")
 
         except Exception as e:
-            sys.stdout.write(f"Error while copying sensor data: {e}\n")
+            self.logger.error(f"Error while copying sensor data: {e}")
             if not self.is_usb_mounted():
-                sys.stdout.write("USB Device removed during copy\n")
+                self.logger.error("USB Device removed during copy")
                 self.status_display.display_header_and_status("Data Copy", "Copy Failed")
-
-
-
-

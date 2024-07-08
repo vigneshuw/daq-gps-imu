@@ -1,5 +1,5 @@
 import time
-import sys
+import logging
 from data_loader.usb import SensorDataCopier
 from IMU.imudevice import IMUPoller
 from GPS.gpsdevice import GPSPoller
@@ -11,6 +11,7 @@ class DataHandler:
 
         # Display
         self.display = display
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         # Initialize
         self.daq_pin = daq_pin
@@ -63,7 +64,7 @@ class DataHandler:
         self.imu_poller.start_polling()
 
         self.daq_status = True
-        sys.stdout.write("Data collection in progress\n")
+        self.logger.info("Data collection started")
         self.display.display_header_and_status("DAQ", "DAQ In progress...")
 
     def stop_daq(self):
@@ -80,13 +81,14 @@ class DataHandler:
 
         self.daq_status = False
         self.daq_start = None
-        sys.stdout.write("Data collection stopped\n")
+        self.logger.info("Data collection stopped")
         # Display ready status
         self.display.display_system_props()
 
     def start_copy(self):
         if self.daq_status:
             self.display.display_header_and_status("Data Copy", "Cannot Copy. Stop DAQ")
+            self.logger.warning("Tried copying when the DAQ is running.")
             return
 
         # Deactivate the DAQ Process

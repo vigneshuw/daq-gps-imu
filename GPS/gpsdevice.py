@@ -7,6 +7,7 @@ import time
 import pickle
 import json
 import serial
+import logging
 
 
 class GPSPoller(threading.Thread):
@@ -14,7 +15,11 @@ class GPSPoller(threading.Thread):
     def __init__(self, save_dir_time):
         threading.Thread.__init__(self)
 
+        # Setup logging
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         # Configure the GPS unit
+        self.logger.info("Configuring GPS for BAUD of 115200 and rate of 10Hz")
         gpsc = GPSCommandSender(baudrate=9600)
         # Update GPS DAQ params
         gpsc.send_command("rate-10")
@@ -42,11 +47,13 @@ class GPSPoller(threading.Thread):
         if not os.path.exists(self.current_save_dir):
             os.makedirs(self.current_save_dir)
 
+        self.logger.info("Starting GPS DAQ")
         with open(self.current_save_dir + "/" + "gps.dat", "wb") as fh:
             while self.running:
                 gps_info = self.gpsd.next()
                 # Serialize and store data
                 pickle.dump(gps_info, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        self.logger.info("Stopping GPS DAQ")
 
     def start_polling(self):
         if not self.running:
@@ -116,7 +123,6 @@ class GPSCommandSender:
         """
         subprocess.run(["sudo", "systemctl", "stop", "gpsd.socket"])
         subprocess.run(["sudo", "systemctl", "stop", "gpsd"])
-        print("Stopped gpsd service and socket")
 
     def start_gpsd(self):
         """
@@ -126,7 +132,6 @@ class GPSCommandSender:
         """
         subprocess.run(["sudo", "systemctl", "start", "gpsd.socket"])
         subprocess.run(["sudo", "systemctl", "start", "gpsd"])
-        print("Started gpsd service and socket")
 
     def close(self):
         if self.ser.is_open:
