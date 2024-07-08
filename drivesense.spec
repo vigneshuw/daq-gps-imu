@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=["/home/minlab/daq-gps-imu"],
     binaries=[],
-    datas=[('images/uw-logo.png', 'images')],
+    datas=[('images/uw-logo.png', 'images'), ('VERSION', '.')],
     hiddenimports=[
         'gpiozero.pins.lgpio',
         'gpiozero.pins.rpigpio',
@@ -15,7 +15,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['device_setup'],
+    excludes=['device_setup', 'automation'],
     noarchive=False,
     optimize=0,
 )

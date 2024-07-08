@@ -1,0 +1,11 @@
+[Unit]
+Description=DriveSense App for Data Collection
+After=drivesense-updater.service
+
+[Service]
+ExecStart=/opt/drivesense/drivesense
+Restart=on-failure
+WorkingDirectory=/opt/drivesense
+
+[Install]
+WantedBy=multi-user.target

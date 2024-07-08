@@ -1,8 +1,9 @@
 import os
 import shutil
-import sys
 import time
 import logging
+import tarfile
+import subprocess
 
 
 class SensorDataCopier:
@@ -30,6 +31,12 @@ class SensorDataCopier:
             self.logger.warning("USB Not Found!")
             return
 
+        # Check for firmware update file
+        fw_update_file = os.path.join(self.usb_mount_point, '__drivesense_fwupdate.tar')
+        if os.path.exists(fw_update_file):
+            self.fw_update()
+            return
+
         try:
             destination_path = os.path.join(self.usb_mount_point, 'uw-sensor-data')
             os.makedirs(destination_path, exist_ok=True)
@@ -38,6 +45,7 @@ class SensorDataCopier:
             num_files = len(os.listdir(self.sensor_data_path))
             if num_files == 0:
                 self.status_display.display_header_and_status(header="Data Copy", status="No Data!")
+                self.logger.info("Tried copy with no data")
                 return
 
             self.status_display.display_header_and_status(header="Data Copy", status="Copy In Progress...")
@@ -58,3 +66,51 @@ class SensorDataCopier:
             if not self.is_usb_mounted():
                 self.logger.error("USB Device removed during copy")
                 self.status_display.display_header_and_status("Data Copy", "Copy Failed")
+
+    def fw_update(self):
+        # Initiating fw update
+        self.logger.info("Updating Device FW")
+        reboot = False
+        self.status_display.display_header_and_status(header="FW Update", status="Updating Firmware...")
+
+        # Get the files
+        fw_update_file = os.path.join(self.usb_mount_point, '__drivesense_fwupdate.tar')
+        extract_path = os.path.join(self.usb_mount_point, 'fw_update_extracted')
+        os.makedirs(extract_path, exist_ok=True)
+
+        try:
+            # Extract files
+            with tarfile.open(fw_update_file) as tar:
+                tar.extractall(path=extract_path)
+
+            # Check for drivesense and version.txt
+            drivesense_executable = os.path.join(extract_path, 'drivesense')
+            if os.path.exists(drivesense_executable):
+                self.logger.info("Firmware files found. Updating system...")
+
+                # Copy files to /opt/drivesense
+                os.makedirs('/opt/drivesense/updater', exist_ok=True)
+                shutil.copy(fw_update_file, '/opt/drivesense/updater')
+
+                self.status_display.display_header_and_status(header="FW Update",
+                                                              status="Complete! Rebooting...")
+                self.logger.info("Firmware update completed successfully. Rebooting system...")
+                time.sleep(5)
+                reboot = True
+            else:
+                self.status_display.display_header_and_status(header="FW Update", status="Invalid FW Package!")
+                self.logger.error("Invalid firmware package")
+
+        except Exception as e:
+            self.logger.error(f"Error during firmware update: {e}")
+            self.status_display.display_header_and_status("Firmware Update", "Firmware Update Failed")
+
+        finally:
+            # Clean up
+            if os.path.exists(fw_update_file):
+                os.remove(fw_update_file)
+            if os.path.exists(extract_path):
+                shutil.rmtree(extract_path)
+
+        if reboot:
+            subprocess.run(['sudo', 'reboot'])

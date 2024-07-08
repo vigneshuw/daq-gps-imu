@@ -1,0 +1,14 @@
+[Unit]
+Description=Updater for DriveSense App
+Before=drivesense.service
+ConditionPathExists=/opt/drivesense/updater
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /var/run/drivesense_updater_ran
+ExecStart=/opt/drivesense/updater/updater.sh
+WorkingDirectory=/opt/drivesense/updater
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

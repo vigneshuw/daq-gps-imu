@@ -22,7 +22,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-logger.info("Starting the application")
 
 # Initialize Display
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,10 +30,23 @@ oled_display = Display(logo_loc=image_path)
 # Data Handler
 data_handler = DataHandler(display=oled_display)
 
+
+# Version
+def get_version():
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    with open(version_file, 'r') as vf:
+        return vf.read().strip()
+
+
 if __name__ == '__main__':
 
+    # Log the application version
+    version = get_version()
+    logger.info(f'Starting application. Version - {version}')
+
     # Initialize the system
-    oled_display.display_header_and_status("System Check", "Initializing...")
+    oled_display.display_header_and_status("System Check", f"Initializing v{version}...")
+    time.sleep(2)
     # Data handler
     data_handler.initialize()
 
@@ -44,6 +56,8 @@ if __name__ == '__main__':
             current_time = time.time()
             elapsed = current_time - data_handler.daq_start
             oled_display.display_header_and_status("DAQ", f"Elapsed time: {round(elapsed/60)} min")
+        elif data_handler.copy_status:
+            pass
         else:
             oled_display.display_system_props()
         time.sleep(60)
