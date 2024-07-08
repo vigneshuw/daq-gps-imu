@@ -36,7 +36,7 @@ class DataHandler:
 
         # Buttons
         self.button_daq = ButtonHandler(pin=16, on_button_held_callback=self.start_daq,
-                                        on_button_released_callback=self.stop_daq, press_duration=2)
+                                        on_button_released_callback=self.stop_daq, press_duration=3)
         self.button_download = ButtonHandler(pin=12, on_button_held_callback=self.start_copy,
                                              on_button_released_callback=None, press_duration=3, release_required=False)
         # Display ready status
