@@ -55,8 +55,7 @@ class IMUPoller(threading.Thread):
                 # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
-        self.start_time = time.time()
-        self.metadata["start_time"] = self.start_time
+        self.start_time = time.monotonic()
 
         # Saving the data periodically - Make directories
         self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
@@ -100,8 +99,8 @@ class IMUPoller(threading.Thread):
             self.running = False
 
             # Stop the DAQ process
-            self.stop_time = time.time()
-            self.metadata["stop_time"] = self.stop_time
+            self.stop_time = time.monotonic()
+            self.metadata["elapsed_time"] = self.start_time - self.stop_time
 
             # Stop the DAQ
             self.join()

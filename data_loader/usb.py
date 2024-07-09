@@ -52,7 +52,17 @@ class SensorDataCopier:
             for index, folder_name in enumerate(os.listdir(self.sensor_data_path)):
                 folder_path = os.path.join(self.sensor_data_path, folder_name)
                 if os.path.isdir(folder_path):
-                    shutil.copytree(folder_path, os.path.join(destination_path, folder_name))
+
+                    # Before transferring, check for existing files in the USB
+                    target_folder_path = os.path.join(destination_path, folder_name)
+                    if os.path.exists(target_folder_path):
+                        base_name = folder_name
+                        counter = 1
+                        while os.path.exists(target_folder_path):
+                            target_folder_path = os.path.join(destination_path, f"{base_name}_{counter}")
+                            counter += 1
+
+                    shutil.copytree(folder_path, target_folder_path)
                     shutil.rmtree(folder_path)
 
                 # Update progress

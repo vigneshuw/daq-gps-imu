@@ -53,7 +53,7 @@ if __name__ == '__main__':
     # Wait indefinitely
     while True:
         if data_handler.daq_status:
-            current_time = time.time()
+            current_time = time.monotonic()
             elapsed = current_time - data_handler.daq_start
             oled_display.display_header_and_status("DAQ", f"Elapsed time: {round(elapsed/60)} min")
         elif data_handler.copy_status:

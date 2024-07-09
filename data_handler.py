@@ -1,5 +1,6 @@
 import time
 import logging
+import os
 from data_loader.usb import SensorDataCopier
 from IMU.imudevice import IMUPoller
 from GPS.gpsdevice import GPSPoller
@@ -31,6 +32,7 @@ class DataHandler:
         self.daq_start = None
 
         # Data Copier
+        self.save_location = save_location
         self.data_copier = SensorDataCopier(self.display, save_location)
 
     def initialize(self):
@@ -50,20 +52,29 @@ class DataHandler:
             self.display.display_header_and_status("DAQ", "Copying! Be Patient")
             return
 
-        self.display.display_header_and_status("DAQ", "Initiating DAQ...")
+        # Getting the directory to save
+        dirs = os.listdir(self.save_location)
+        existing_trial_counts = [int(x[6:]) for x in dirs if x[0:6] == "trial-"]
+        if existing_trial_counts:
+            max_trial = max(existing_trial_counts)
+        else:
+            max_trial = 0
+        save_dir = "trial-" + str(max_trial + 1)
+        self.display.display_header_and_status("DAQ", f"Starting {save_dir}")
+        time.sleep(2)
 
         # Maintain time
-        self.daq_start = int(time.time())
+        self.daq_status = True
+        self.daq_start = int(time.monotonic())
 
         # GPS
-        self.gps_poller = GPSPoller(save_dir_time=str(self.daq_start))
+        self.gps_poller = GPSPoller(save_dir_time=save_dir)
         self.gps_poller.start_polling()
 
         # IMU
-        self.imu_poller = IMUPoller(save_dir_time=str(self.daq_start))
+        self.imu_poller = IMUPoller(save_dir_time=save_dir)
         self.imu_poller.start_polling()
 
-        self.daq_status = True
         self.logger.info("Data collection started")
         self.display.display_header_and_status("DAQ", "DAQ In progress...")
 
