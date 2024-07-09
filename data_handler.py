@@ -20,6 +20,7 @@ class DataHandler:
 
         # Sensors
         self.gps_poller = None
+        self.configure_gps = True
         self.imu_poller = None
 
         # Buttons
@@ -68,7 +69,8 @@ class DataHandler:
         self.daq_start = int(time.monotonic())
 
         # GPS
-        self.gps_poller = GPSPoller(save_dir_time=save_dir)
+        self.gps_poller = GPSPoller(save_dir_time=save_dir, configure_gps=self.configure_gps)
+        self.configure_gps = False
         self.gps_poller.start_polling()
 
         # IMU

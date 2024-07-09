@@ -12,19 +12,21 @@ import logging
 
 class GPSPoller(threading.Thread):
 
-    def __init__(self, save_dir_time):
+    def __init__(self, save_dir_time, configure_gps=True):
         threading.Thread.__init__(self)
 
         # Setup logging
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        # Configure the GPS unit
-        self.logger.info("Configuring GPS for BAUD of 115200 and rate of 10Hz")
-        gpsc = GPSCommandSender(baudrate=9600)
-        # Update GPS DAQ params
-        gpsc.send_command("rate-10")
-        time.sleep(1)
-        gpsc.send_command("baud-115200")
+        # Configure GPS only if required
+        if configure_gps:
+            # Configure the GPS unit
+            self.logger.info("Configuring GPS for BAUD of 115200 and rate of 10Hz")
+            gpsc = GPSCommandSender(baudrate=9600)
+            # Update GPS DAQ params
+            gpsc.send_command("rate-10")
+            time.sleep(1)
+            gpsc.send_command("baud-115200")
 
         self.gpsd = gps.gps(mode=gps.WATCH_ENABLE)
         self.running = False
