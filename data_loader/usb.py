@@ -63,13 +63,19 @@ class SensorDataCopier:
                             counter += 1
 
                     shutil.copytree(folder_path, target_folder_path)
+                    os.sync()   # immediate flush data to device
                     shutil.rmtree(folder_path)
 
                 # Update progress
                 self.status_display.display_progress("Data Copy", index/num_files)
 
             self.logger.info("Data copy successful")
-            self.status_display.display_header_and_status(header="Data Copy", status="Copy Successful!")
+            self.status_display.display_header_and_status(header="Data Copy",
+                                                          status="Copy Successful!\nDevice Unmounted")
+            
+            # Unmount the USB drive
+            subprocess.run(["sudo", "umount", self.usb_mount_point], check=True)
+            self.logger.info("USB Drive unmounted successful")
 
         except Exception as e:
             self.logger.error(f"Error while copying sensor data: {e}")
