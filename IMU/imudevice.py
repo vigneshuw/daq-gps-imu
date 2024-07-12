@@ -3,47 +3,22 @@ import sys
 import threading
 import time
 import os
-from utils import FileWriter
+import struct
+import logging
+import RPi.GPIO as GPIO
 from queue import Queue
-from . import lsm6dsl
-
-# lsm6dsl = LSM6DSL()
-# # Initialize device
-# lsm6dsl.open()
-# lsm6dsl.configure_sensor()
-# lsm6dsl.detect_device()
-#
-# try:
-#     while True:
-#         gyro_data, accel_data = lsm6dsl.read_gyro_accel()
-#         gx, gy, gz = gyro_data
-#         ax, ay, az = accel_data
-#
-#         # Convert to signed values (already handled by struct.unpack)
-#         # Convert raw accelerometer values to g's (assuming full-scale range of ±2g)
-#         ax_g = ax * 0.000488
-#         ay_g = ay * 0.000488
-#         az_g = az * 0.000488
-#
-#         # print(f"Gyroscope - X: {gx}, Y: {gy}, Z: {gz}")
-#         print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
-#
-#         time.sleep(1 / 3300)  # Sleep for the period of 3.3 kHz sampling rate
-#
-# except KeyboardInterrupt:
-#     print("\nExiting...")
-# finally:
-#     lsm6dsl.close()
+import utils
+from IMU import lsm6dsl
 
 
 class IMUPoller(threading.Thread):
     def __init__(self, save_dir_time, bus=0, device=0, max_speed_hz=10000000, drdy_pin=24):
         threading.Thread.__init__(self)
+        self.file_writer_thread = None
         self.imu_device = lsm6dsl.LSM6DSL(spi_bus=bus, spi_dev=device, speed=max_speed_hz, drdy_pin=drdy_pin)
 
         self.running = False
         self.data_queue = Queue()
-        self.file_writer_thread = None
 
         # Time Management
         self.start_time = None
@@ -54,25 +29,47 @@ class IMUPoller(threading.Thread):
         self.current_save_dir = None
         self.metadata = {}
 
+        # Logging
+        self.logger = logging.getLogger(self.__class__.__name__)
+
     def data_ready_callback(self):
-        gyro_data, accel_data = self.imu_device.read_gyro_accel()
-        gx, gy, gz = gyro_data
-        ax, ay, az = accel_data
+        """
+        Queries the sensor data from FIFO and adds to a queue
 
-        # Convert to human readable values
-        ax_g = ax * 0.000488
-        ay_g = ay * 0.000488
-        az_g = az * 0.000488
+        :return: None
+        """
 
-        # Store data in queue
-        self.data_queue.put(f"{gx},{gy},{gz},{ax_g},{ay_g},{az_g}\n")
-        # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
+        status1, status2, status3, status4 = self.imu_device.read_fifo_status()
+        num_words = (status2 & 0x0F) << 8 | status1
+
+        if num_words > 0:
+            fifo_data = self.imu_device.read_fifo_data(num_words)
+
+            for i in range(0, len(fifo_data), 12):
+                gx = struct.unpack('<h', bytes(fifo_data[i:i + 2]))[0]
+                gy = struct.unpack('<h', bytes(fifo_data[i + 2:i + 4]))[0]
+                gz = struct.unpack('<h', bytes(fifo_data[i + 4:i + 6]))[0]
+                ax = struct.unpack('<h', bytes(fifo_data[i + 6:i + 8]))[0]
+                ay = struct.unpack('<h', bytes(fifo_data[i + 8:i + 10]))[0]
+                az = struct.unpack('<h', bytes(fifo_data[i + 10:i + 12]))[0]
+
+                ax_g = ax * 0.000488
+                ay_g = ay * 0.000488
+                az_g = az * 0.000488
+
+                self.data_queue.put(f"{gx},{gy},{gz},{round(ax_g, 4)},{round(ay_g, 4)},{round(az_g, 4)}\n".encode())
+                # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
-        self.start_time = time.time()
-        self.metadata["start_time"] = self.start_time
+        """
+        Start the thread responsible for IMU data collection
 
-        # Make directories
+        :return: None
+        """
+
+        self.start_time = time.monotonic()
+
+        # Saving the data periodically - Make directories
         self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
         if not os.path.exists(self.current_save_dir):
             os.makedirs(self.current_save_dir)
@@ -83,42 +80,58 @@ class IMUPoller(threading.Thread):
             fh.write("gx,gy,gz,ax_g,ay_g,az_g\n")
 
         # Start the writing file thread
-        self.file_writer_thread = FileWriter(self.data_queue, output_file)
+        self.file_writer_thread = threading.Thread(target=utils.file_writer, args=(self.data_queue, output_file))
         self.file_writer_thread.start()
 
+        self.logger.info("Starting IMU DAQ")
         while self.running:
-            if self.imu_device.line.get_value() == 1:
+            if GPIO.input(self.imu_device.drdy_pin) == GPIO.HIGH:
                 self.data_ready_callback()
+        self.logger.info("Stopping IMU DAQ")
 
-        self.file_writer_thread.stop()
+        self.data_queue.put(None)
+        self.file_writer_thread.join()
 
     def start_polling(self):
+        """
+        Start the DAQ process if all conditions are met
+
+        :return: None
+        """
+
         if not self.running:
             # Configure sensor and initiate
             self.imu_device.open()
-            self.imu_device.configure_sensor()
             time.sleep(1)
             self.running = self.imu_device.detect_device()
             if self.running:
                 self.start()
+                self.imu_device.configure_sensor()
                 return True
             else:
-                sys.stdout.write("IMU Device not detected. DAQ Process not started\n")
+                self.logger.error("IMU Device not detected. DAQ Process not started")
                 return False
 
     def stop_polling(self):
+        """
+        Stop the DAQ process if it is running
+
+        :return: None
+        """
+
         if self.running:
             self.running = False
 
             # Stop the DAQ process
-            self.imu_device.close()
+            self.stop_time = time.monotonic()
+            self.metadata["elapsed_time"] = self.stop_time - self.start_time
 
-            self.stop_time = time.time()
-            self.metadata["stop_time"] = self.stop_time
+            # Stop the DAQ
+            self.join()
 
             # Write the metadata
             with open(self.current_save_dir + "/" + "imu.meta", "w") as fh:
                 json_string = json.dumps(self.metadata)
                 fh.write(json_string + "\n")
 
-            self.join()
+            self.imu_device.close()

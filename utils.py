@@ -1,23 +1,33 @@
-import threading
 import time
+import queue
 
 
-class FileWriter(threading.Thread):
-    def __init__(self, data_queue, output_file, write_interval=60):
-        threading.Thread.__init__(self)
-        self.data_queue = data_queue
-        self.output_file = output_file
-        self.running = True
-        self.write_interval = write_interval
+def file_writer(data_queue, output_file):
+    """
+    Write data from a queue to a file.
 
-    def run(self):
-        with open(self.output_file, "a") as fh:
-            while self.running:
-                time.sleep(self.write_interval)
-                while not self.data_queue.empty():
-                    fh.write(self.data_queue.get())
-                fh.flush()
+    :param data_queue: The queue handing the data
+    :param output_file: Path to the file to append the data from queue
+    :return: None
+    """
 
-    def stop(self):
-        self.running = False
-
+    with open(output_file, "ab") as fh:
+        buffer = bytearray()
+        while True:
+            try:
+                encoded_data = data_queue.get(timeout=2)  # Use a timeout to prevent blocking indefinitely
+                if encoded_data is None:
+                    break
+                buffer.extend(encoded_data)
+                if len(buffer) > 4096:  # Write to file when buffer exceeds 4KB
+                    fh.write(buffer)
+                    fh.flush()
+                    buffer.clear()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f"Error writing to file: {e}")
+                break
+        if buffer:
+            fh.write(buffer)
+            fh.flush()

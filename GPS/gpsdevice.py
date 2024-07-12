@@ -7,21 +7,29 @@ import time
 import pickle
 import json
 import serial
+import logging
 
 
 class GPSPoller(threading.Thread):
 
-    def __init__(self, save_dir_time):
+    def __init__(self, save_dir_time, gps_fix_indicator, configure_gps=True):
         threading.Thread.__init__(self)
 
-        # Configure the GPS unit
-        gpsc = GPSCommandSender(baudrate=9600)
-        # Update GPS DAQ params
-        gpsc.send_command("rate-10")
-        time.sleep(1)
-        gpsc.send_command("baud-115200")
+        # Setup logging
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+        # Configure GPS only if required
+        if configure_gps:
+            # Configure the GPS unit
+            self.logger.info("Configuring GPS for BAUD of 115200 and rate of 10Hz")
+            gpsc = GPSCommandSender(baudrate=9600)
+            # Update GPS DAQ params
+            gpsc.send_command("rate-10")
+            time.sleep(1)
+            gpsc.send_command("baud-115200")
 
         self.gpsd = gps.gps(mode=gps.WATCH_ENABLE)
+        self.gps_fix_indicator = gps_fix_indicator
         self.running = False
 
         # Time Management
@@ -34,46 +42,91 @@ class GPSPoller(threading.Thread):
         self.metadata = {}
 
     def run(self):
-        self.start_time = time.time()
-        self.metadata["start_time"] = self.start_time
+        """
+        Start the thread responsible for GPS DAQ
+
+        :return: None
+        """
+
+        self.start_time = time.monotonic()
 
         # Make directories
         self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
         if not os.path.exists(self.current_save_dir):
             os.makedirs(self.current_save_dir)
 
+        self.logger.info("Starting GPS DAQ")
         with open(self.current_save_dir + "/" + "gps.dat", "wb") as fh:
             while self.running:
                 gps_info = self.gpsd.next()
+
+                # Check for GPS fix
+                try:
+                    if gps_info["class"] == "TPV":
+                        self.gps_fix_indicator[0] = gps_info.mode
+                except Exception:
+                    pass
+
                 # Serialize and store data
                 pickle.dump(gps_info, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        self.logger.info("Stopping GPS DAQ")
 
     def start_polling(self):
+        """
+        Start the DAQ process for GPS
+
+        :return: None
+        """
+
         if not self.running:
             self.running = True
             self.start()
 
     def stop_polling(self):
+        """
+        Stop the DAQ process for GPS
+
+        :return: None
+        """
+
         if self.running:
             self.running = False
-            self.stop_time = time.time()
-            self.metadata["stop_time"] = self.stop_time
+            self.stop_time = time.monotonic()
+            self.metadata["elapsed_time"] = self.stop_time - self.start_time
+
+            self.join()
 
             # Write the metadata
             with open(self.current_save_dir + "/" + "gps.meta", "w") as fh:
                 json_string = json.dumps(self.metadata)
                 fh.write(json_string + "\n")
 
-            self.join()
+    def stop(self):
+        """
+        Set the flag to indicate the stop of DAQ
+
+        :return: None
+        """
+
+        self.running = False
 
 
 class GPSCommandSender:
+    """
+    Responsible for sending commands over serial to the GPS module of BerryGPS-IMU v4 module
+    """
     def __init__(self, port="/dev/serial0", baudrate=9600):
         self.port = port
         self.baudrate = baudrate
         self.ser = serial.Serial(port, baudrate, timeout=5)
 
     def send_command(self, ctype: str):
+        """
+        Send a command to the GPS module
+
+        :param ctype: A string indicating the type pf command
+        :return:
+        """
 
         # Determine based on command type
         if ctype == "reset":
@@ -113,7 +166,6 @@ class GPSCommandSender:
         """
         subprocess.run(["sudo", "systemctl", "stop", "gpsd.socket"])
         subprocess.run(["sudo", "systemctl", "stop", "gpsd"])
-        print("Stopped gpsd service and socket")
 
     def start_gpsd(self):
         """
@@ -123,9 +175,14 @@ class GPSCommandSender:
         """
         subprocess.run(["sudo", "systemctl", "start", "gpsd.socket"])
         subprocess.run(["sudo", "systemctl", "start", "gpsd"])
-        print("Started gpsd service and socket")
 
     def close(self):
+        """
+        Close the serial communication
+
+        :return: None
+        """
+
         if self.ser.is_open:
             self.ser.close()
 

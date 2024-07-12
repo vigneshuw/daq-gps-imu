@@ -1,0 +1,18 @@
+[Unit]
+Description=DriveSense App for Data Collection
+After=drivesense-updater.service gpsd.service
+
+[Service]
+ExecStart=/opt/drivesense/drivesense
+Restart=on-failure
+WorkingDirectory=/opt/drivesense
+
+# Set high priority
+Nice=-10
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=99
+IOWeight=800
+CPUWeight=80
+
+[Install]
+WantedBy=multi-user.target
