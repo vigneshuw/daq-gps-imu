@@ -18,14 +18,32 @@ class SensorDataCopier:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def is_usb_mounted(self):
+        """
+        Check if the device is mounted to the USB port
+
+        :return: None
+        """
+
         return os.path.ismount(self.usb_mount_point)
 
     def test_progress(self):
+        """
+        Display test code
+
+        :return: None
+        """
+
         for i in range(100):
             self.status_display.display_progress("Data Copy", i / 100)
             time.sleep(0.5)
 
     def copy_sensor_data(self):
+        """
+        Copy the sensor data to the usb mounted device.
+
+        :return: None
+        """
+
         if not self.is_usb_mounted():
             self.status_display.display_header_and_status(header="Data Copy", status="USB Not Found!")
             self.logger.warning("USB Not Found!")
@@ -84,6 +102,13 @@ class SensorDataCopier:
                 self.status_display.display_header_and_status("Data Copy", "Copy Failed")
 
     def fw_update(self):
+
+        """
+        Firmware update for the DAQ software
+
+        :return: None
+        """
+
         # Initiating fw update
         self.logger.info("Updating Device FW")
         reboot = False

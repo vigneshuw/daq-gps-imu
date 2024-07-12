@@ -2,7 +2,15 @@ import time
 import queue
 
 
-def file_writer(data_queue, output_file, write_interval=60):
+def file_writer(data_queue, output_file):
+    """
+    Write data from a queue to a file.
+
+    :param data_queue: The queue handing the data
+    :param output_file: Path to the file to append the data from queue
+    :return: None
+    """
+
     with open(output_file, "ab") as fh:
         buffer = bytearray()
         while True:

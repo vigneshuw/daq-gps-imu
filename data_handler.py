@@ -39,6 +39,12 @@ class DataHandler:
 
     def initialize(self):
 
+        """
+        Initializing the button for operation
+
+        :return: None
+        """
+
         # Buttons
         self.button_daq = ButtonHandler(pin=16, on_button_held_callback=self.start_daq,
                                         on_button_released_callback=self.stop_daq, press_duration=3)
@@ -48,6 +54,12 @@ class DataHandler:
         self.display.display_system_props()
 
     def start_daq(self):
+
+        """
+        Button callback for the start of the DAQ process. GPS and IMU Polling instances are created
+
+        :return:
+        """
 
         # Verify if DAQ can be started
         if self.copy_status:
@@ -84,6 +96,12 @@ class DataHandler:
 
     def stop_daq(self):
 
+        """
+        Button callback for stopping the DAQ process
+
+        :return:
+        """
+
         # Check for DAQ running
         if not self.daq_status:
             return
@@ -101,6 +119,13 @@ class DataHandler:
         self.display.display_system_props()
 
     def start_copy(self):
+
+        """
+        Button callback for starting the data copy
+
+        :return:
+        """
+
         if self.daq_status:
             self.display.display_header_and_status("Data Copy", "Cannot Copy. Stop DAQ")
             self.logger.warning("Tried copying when the DAQ is running.")

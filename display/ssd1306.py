@@ -21,9 +21,23 @@ class Display:
         self.logo_location = logo_loc
 
     def get_canvas(self):
+
+        """
+        Create a canvas and return
+
+        :return: luma canvas
+        """
+
         return canvas(self.device)
 
     def get_system_properties(self):
+
+        """
+        Get the system properties. Temperature, SD Card memory, RAM, and CPU Frequency
+
+        :return: A tuple of queried system properties
+        """
+
         # Get SD card remaining memory
         st = os.statvfs('/')
         free_memory = (st.f_bavail * st.f_frsize) / 1024 / 1024 / 1000  # Convert to GB
@@ -45,10 +59,24 @@ class Display:
         return free_memory, ram_free, clock_freq, cpu_temp
 
     def display_default_image(self):
+
+        """
+        Displays the preset logo in the center of the screen
+
+        :return: None
+        """
+
         if self.logo_location is not None:
             self.display_image(self.logo_location)
 
     def display_system_props(self):
+
+        """
+        Display the system properties on the OLED screen
+
+        :return: None
+        """
+
         # Get the logo
         logo = Image.open(self.logo_location).convert('RGBA')
 
@@ -96,6 +124,15 @@ class Display:
         self.device.display(final_image)
 
     def display_image(self, image_location):
+
+        """
+        Display an image in the center of the screen. The Image is resized to meet the screen dimensions by keeping
+        the aspect ratio consistent
+
+        :param image_location: Location of the image file to display
+        :return: None
+        """
+
         # Get the logo
         logo = Image.open(image_location).convert('RGBA')
 
@@ -129,6 +166,13 @@ class Display:
 
     def display_centered_text(self, text):
 
+        """
+        Display a text in the center of the screen
+
+        :param text: A string to display
+        :return:
+        """
+
         # Load a TTF font (use a truetype font from your system)
         font = ImageFont.load_default()
 
@@ -142,6 +186,17 @@ class Display:
             draw.text((text_x, text_y), text, font=font, fill=255)
 
     def display_header_and_status(self, header, status, indicator=-1):
+
+        """
+        Displays a header on top of the screen and a string in the center of the screen. Additionally, can also display
+        four different icons on the bottom right of the screen
+
+        :param header: The heading to be displayed on top of the screen
+        :param status: The test to display in the screen center
+        :param indicator: Ranging from 0 to 3
+        :return: None
+        """
+
         final_image = Image.new('1', (self.device.width, self.device.height))
         draw = ImageDraw.Draw(final_image)
 
@@ -178,6 +233,15 @@ class Display:
         self.device.display(final_image)
 
     def display_progress(self, header, progress):
+
+        """
+        Display a progress bar in the center of the screen along with a header on top
+
+        :param header: Header for the screen
+        :param progress: Progress bar to display
+        :return: None
+        """
+
         final_image = Image.new('1', (self.device.width, self.device.height))
         draw = ImageDraw.Draw(final_image)
 
@@ -202,6 +266,15 @@ class Display:
         self.device.display(final_image)
 
     def add_text(self, text, pos):
+
+        """
+        Can add text to a specific position on the screen
+
+        :param text: String to be displayed
+        :param pos: Position to display the string
+        :return: None
+        """
+
         with self.get_canvas() as draw:
             draw.text(pos, text, font=self.font, fill=255)
 

@@ -42,6 +42,12 @@ class GPSPoller(threading.Thread):
         self.metadata = {}
 
     def run(self):
+        """
+        Start the thread responsible for GPS DAQ
+
+        :return: None
+        """
+
         self.start_time = time.monotonic()
 
         # Make directories
@@ -66,11 +72,23 @@ class GPSPoller(threading.Thread):
         self.logger.info("Stopping GPS DAQ")
 
     def start_polling(self):
+        """
+        Start the DAQ process for GPS
+
+        :return: None
+        """
+
         if not self.running:
             self.running = True
             self.start()
 
     def stop_polling(self):
+        """
+        Stop the DAQ process for GPS
+
+        :return: None
+        """
+
         if self.running:
             self.running = False
             self.stop_time = time.monotonic()
@@ -84,16 +102,31 @@ class GPSPoller(threading.Thread):
                 fh.write(json_string + "\n")
 
     def stop(self):
+        """
+        Set the flag to indicate the stop of DAQ
+
+        :return: None
+        """
+
         self.running = False
 
 
 class GPSCommandSender:
+    """
+    Responsible for sending commands over serial to the GPS module of BerryGPS-IMU v4 module
+    """
     def __init__(self, port="/dev/serial0", baudrate=9600):
         self.port = port
         self.baudrate = baudrate
         self.ser = serial.Serial(port, baudrate, timeout=5)
 
     def send_command(self, ctype: str):
+        """
+        Send a command to the GPS module
+
+        :param ctype: A string indicating the type pf command
+        :return:
+        """
 
         # Determine based on command type
         if ctype == "reset":
@@ -144,6 +177,12 @@ class GPSCommandSender:
         subprocess.run(["sudo", "systemctl", "start", "gpsd"])
 
     def close(self):
+        """
+        Close the serial communication
+
+        :return: None
+        """
+
         if self.ser.is_open:
             self.ser.close()
 

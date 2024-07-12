@@ -33,6 +33,12 @@ class IMUPoller(threading.Thread):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def data_ready_callback(self):
+        """
+        Queries the sensor data from FIFO and adds to a queue
+
+        :return: None
+        """
+
         status1, status2, status3, status4 = self.imu_device.read_fifo_status()
         num_words = (status2 & 0x0F) << 8 | status1
 
@@ -55,6 +61,12 @@ class IMUPoller(threading.Thread):
                 # print(f"Acceleration - X: {ax_g:.6f} g, Y: {ay_g:.6f} g, Z: {az_g:.6f} g")
 
     def run(self):
+        """
+        Start the thread responsible for IMU data collection
+
+        :return: None
+        """
+
         self.start_time = time.monotonic()
 
         # Saving the data periodically - Make directories
@@ -81,6 +93,12 @@ class IMUPoller(threading.Thread):
         self.file_writer_thread.join()
 
     def start_polling(self):
+        """
+        Start the DAQ process if all conditions are met
+
+        :return: None
+        """
+
         if not self.running:
             # Configure sensor and initiate
             self.imu_device.open()
@@ -95,6 +113,12 @@ class IMUPoller(threading.Thread):
                 return False
 
     def stop_polling(self):
+        """
+        Stop the DAQ process if it is running
+
+        :return: None
+        """
+
         if self.running:
             self.running = False
 

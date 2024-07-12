@@ -74,19 +74,45 @@ class LSM6DSL:
             sys.exit(1)
 
     def open(self):
+        """
+        Setup SPI for device communication
+
+        :return: None
+        """
+
         self.spi.open(self.spi_bus, self.spi_dev)
         self.spi.max_speed_hz = self.speed
         self.spi.mode = 0b11
 
     def write_register(self, register, value):
+        """
+        Write to a register
+
+        :param register: The register to write
+        :param value: A byte value to write
+        :return: Write status
+        """
+
         rx = self.spi.xfer2([register & 0x7F, value])
         return rx
 
     def read_register(self, register):
+        """
+        Read a single byte from a register
+
+        :param register: The register to read from.
+        :return: The read byte value
+        """
+
         rx = self.spi.xfer2([register | 0x80, 0x00])
         return rx[1]
 
     def configure_sensor(self):
+        """
+        Configure the IMU sensor in the BerryGPS-IMU v4 device
+
+        :return: None
+        """
 
         # Reset device
         self.write_register(self.CTRL3_C, 0x01)     # SW Reset
@@ -114,11 +140,22 @@ class LSM6DSL:
         self.write_register(self.INT2_CTRL, 0x08)
 
     def read_bulk_data(self):
+        """
+        Read a bulk of 12 bytes from SPI on the BerryGPS-IMU v4 device spanning across accelerometer and gyroscope
+
+        :return: A list of read byte values
+        """
 
         raw_data = self.spi.xfer2([self.OUTX_L_G | 0x80] + [0x00] * 12)[1:]
         return raw_data
 
     def read_gyro_accel(self):
+        """
+        Do a bulk read on the acceleration and gyroscope sensor on the BerryGPS-IMU v4 device
+
+        :return: A tuple of two tuples, containing the acceleration and gyroscope sensor values for three axis
+        """
+
         raw_data = self.read_bulk_data()
 
         gx = struct.unpack('<h', bytes(raw_data[0:2]))[0]
@@ -131,6 +168,12 @@ class LSM6DSL:
         return (gx, gy, gz), (ax, ay, az)
 
     def read_fifo_status(self):
+        """
+        Read four status values for the FIFO
+
+        :return: A tuple of four status values
+        """
+
         status1 = self.read_register(self.FIFO_STATUS1)
         status2 = self.read_register(self.FIFO_STATUS2)
         status3 = self.read_register(self.FIFO_STATUS3)
@@ -138,17 +181,42 @@ class LSM6DSL:
         return status1, status2, status3, status4
 
     def read_fifo_data(self, num_words):
+        """
+        Read data from the FIFO buffer for the device.
+
+        :param num_words: Number of words to read from the FIFO buffer.
+        :return: The read data in a list
+        """
+
         num_bytes = num_words * 2
         return self.spi.xfer2([self.FIFO_DATA_OUT_L | 0x80] + [0x00] * num_bytes)[1:]
 
     def read_fifo_word(self):
+        """
+        Read a FIFO word from the FIFO buffer.
+
+        :return: A list containing the word (2 bytes)
+        """
+
         return self.spi.xfer2([self.FIFO_DATA_OUT_L | 0x80, 0x00, 0x00])[1:]
 
     def close(self):
+        """
+        Close the SPI communication and cleanup
+
+        :return:
+        """
+
+        # TODO: Disable the data collection for the device
         self.spi.close()
         GPIO.cleanup(self.drdy_pin)
 
     def detect_device(self):
+        """
+        Detect to see if the IMU device is reachable over SPI
+
+        :return: True, if the device is accessible
+        """
 
         try:
             response = self.read_register(self.WHO_AM_I)
