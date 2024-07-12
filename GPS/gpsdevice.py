@@ -42,7 +42,6 @@ class GPSPoller(threading.Thread):
 
     def run(self):
         self.start_time = time.monotonic()
-        self.metadata["start_time"] = self.start_time
 
         # Make directories
         self.current_save_dir = "/sensor_data" + "/" + self.save_dir_time
@@ -66,7 +65,7 @@ class GPSPoller(threading.Thread):
         if self.running:
             self.running = False
             self.stop_time = time.monotonic()
-            self.metadata["elapsed_time"] = self.start_time - self.stop_time
+            self.metadata["elapsed_time"] = self.stop_time - self.start_time
 
             self.join()
 

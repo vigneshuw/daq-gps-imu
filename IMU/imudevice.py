@@ -100,7 +100,7 @@ class IMUPoller(threading.Thread):
 
             # Stop the DAQ process
             self.stop_time = time.monotonic()
-            self.metadata["elapsed_time"] = self.start_time - self.stop_time
+            self.metadata["elapsed_time"] = self.stop_time - self.start_time
 
             # Stop the DAQ
             self.join()
