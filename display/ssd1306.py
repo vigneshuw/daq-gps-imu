@@ -141,7 +141,7 @@ class Display:
             # Draw the text
             draw.text((text_x, text_y), text, font=font, fill=255)
 
-    def display_header_and_status(self, header, status, show_circle=False):
+    def display_header_and_status(self, header, status, indicator=-1):
         final_image = Image.new('1', (self.device.width, self.device.height))
         draw = ImageDraw.Draw(final_image)
 
@@ -157,11 +157,23 @@ class Display:
         status_y = (self.device.height - status_height) // 2
         draw.text((status_x, status_y), status, font=self.font, fill=255)
 
-        # Optionally draw circle
-        if show_circle:
-            circle_x = self.device.width - 20
-            circle_y = self.device.height - 20
-            draw.ellipse((circle_x, circle_y, circle_x + 15, circle_y + 15), outline=255, fill=0)
+        # Draw GPS Fix indicator
+        indicator_size = 10
+        indicator_x = self.device.width - indicator_size - 5
+        indicator_y = self.device.height - indicator_size - 5
+        if indicator == 0:
+            draw.text((indicator_x, indicator_y), "?", font=self.font, fill=255)
+        elif indicator == 1:
+            draw.line((indicator_x, indicator_y, indicator_x + indicator_size, indicator_y + indicator_size), fill=255)
+            draw.line((indicator_x + indicator_size, indicator_y, indicator_x, indicator_y + indicator_size), fill=255)
+        elif indicator == 2:
+            draw.ellipse((indicator_x, indicator_y, indicator_x + indicator_size, indicator_y + indicator_size),
+                         outline=255, fill=0)
+        elif indicator == 3:
+            draw.ellipse((indicator_x, indicator_y, indicator_x + indicator_size, indicator_y + indicator_size),
+                         outline=255, fill=255)
+        else:
+            pass
 
         self.device.display(final_image)
 

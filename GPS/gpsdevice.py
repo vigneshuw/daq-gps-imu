@@ -12,7 +12,7 @@ import logging
 
 class GPSPoller(threading.Thread):
 
-    def __init__(self, save_dir_time, configure_gps=True):
+    def __init__(self, save_dir_time, gps_fix_indicator, configure_gps=True):
         threading.Thread.__init__(self)
 
         # Setup logging
@@ -29,6 +29,7 @@ class GPSPoller(threading.Thread):
             gpsc.send_command("baud-115200")
 
         self.gpsd = gps.gps(mode=gps.WATCH_ENABLE)
+        self.gps_fix_indicator = gps_fix_indicator
         self.running = False
 
         # Time Management
@@ -52,6 +53,14 @@ class GPSPoller(threading.Thread):
         with open(self.current_save_dir + "/" + "gps.dat", "wb") as fh:
             while self.running:
                 gps_info = self.gpsd.next()
+
+                # Check for GPS fix
+                try:
+                    if gps_info["class"] == "TPV":
+                        self.gps_fix_indicator[0] = gps_info.mode
+                except Exception:
+                    pass
+
                 # Serialize and store data
                 pickle.dump(gps_info, fh, protocol=pickle.HIGHEST_PROTOCOL)
         self.logger.info("Stopping GPS DAQ")

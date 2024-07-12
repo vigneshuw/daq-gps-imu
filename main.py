@@ -23,12 +23,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# GPS Info
+gps_fix_state = [0]
+
 # Initialize Display
 script_dir = os.path.dirname(os.path.abspath(__file__))
 image_path = os.path.join(script_dir, 'images', 'uw-logo.png')
 oled_display = Display(logo_loc=image_path)
 # Data Handler
-data_handler = DataHandler(display=oled_display)
+data_handler = DataHandler(display=oled_display, gps_fix_state=gps_fix_state)
 
 
 # Version
@@ -55,7 +58,7 @@ if __name__ == '__main__':
         if data_handler.daq_status:
             current_time = time.monotonic()
             elapsed = current_time - data_handler.daq_start
-            oled_display.display_header_and_status("DAQ", f"Elapsed time: {round(elapsed/60)} min")
+            oled_display.display_header_and_status("DAQ", f"Elapsed time: {round(elapsed/60)} min", indicator=gps_fix_state[0])
         elif data_handler.copy_status:
             pass
         else:

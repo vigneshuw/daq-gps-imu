@@ -8,7 +8,7 @@ from button import ButtonHandler
 
 
 class DataHandler:
-    def __init__(self, display, save_location="/sensor_data", daq_pin=16, transfer_pin=25):
+    def __init__(self, display, gps_fix_state, save_location="/sensor_data", daq_pin=16, transfer_pin=25):
 
         # Display
         self.display = display
@@ -20,6 +20,7 @@ class DataHandler:
 
         # Sensors
         self.gps_poller = None
+        self.gps_fix_state = gps_fix_state
         self.configure_gps = True
         self.imu_poller = None
 
@@ -69,7 +70,8 @@ class DataHandler:
         self.daq_start = int(time.monotonic())
 
         # GPS
-        self.gps_poller = GPSPoller(save_dir_time=save_dir, configure_gps=self.configure_gps)
+        self.gps_poller = GPSPoller(save_dir_time=save_dir, configure_gps=self.configure_gps,
+                                    gps_fix_indicator=self.gps_fix_state)
         self.configure_gps = False
         self.gps_poller.start_polling()
 
@@ -78,7 +80,7 @@ class DataHandler:
         self.imu_poller.start_polling()
 
         self.logger.info("Data collection started")
-        self.display.display_header_and_status("DAQ", "DAQ In progress...")
+        self.display.display_header_and_status("DAQ", "DAQ In progress...",  indicator=self.gps_fix_state[0])
 
     def stop_daq(self):
 
