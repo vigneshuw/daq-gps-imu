@@ -11,12 +11,17 @@ log_directory = "/var/drivesense/logs"
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
 # Create log file
-log_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-log_file = os.path.join(log_directory, log_timestamp + ".log")
+log_files = os.listdir(log_directory)
+log_file_ids = [int(x.split(".")[0]) for x in log_files if x.split(".")[-1] == "log"]
+if log_file_ids:
+    log_file_id = str(max(log_file_ids) + 1)
+else:
+    log_file_id = "1"
+log_file = os.path.join(log_directory, log_file_id + ".log")
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(log_file),
         logging.StreamHandler()

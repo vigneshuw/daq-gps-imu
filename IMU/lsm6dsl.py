@@ -207,7 +207,16 @@ class LSM6DSL:
         :return:
         """
 
-        # TODO: Disable the data collection for the device
+        # Stop the acceleration and gyroscope
+        self.write_register(self.CTRL1_XL, 0x00)    # Power down accelerometer
+        self.write_register(self.CTRL2_G, 0x00)     # Power down gyroscope
+
+        # Disable FIFO
+        self.write_register(self.FIFO_CTRL5, 0x00)
+
+        # Clear the FIFO
+        self.read_fifo_data(960)
+
         self.spi.close()
         GPIO.cleanup(self.drdy_pin)
 
