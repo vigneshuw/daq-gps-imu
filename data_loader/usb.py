@@ -4,6 +4,7 @@ import time
 import logging
 import tarfile
 import subprocess
+import json
 
 
 class SensorDataCopier:
@@ -53,6 +54,12 @@ class SensorDataCopier:
         fw_update_file = os.path.join(self.usb_mount_point, '__drivesense_fwupdate.tar')
         if os.path.exists(fw_update_file):
             self.fw_update()
+            return
+
+        # Check for system config information
+        system_config_file = os.path.join(self.usb_mount_point, '__drivesense_system_config.json')
+        if os.path.exists(system_config_file):
+            self.system_config(system_config_file)
             return
 
         try:
@@ -155,3 +162,133 @@ class SensorDataCopier:
 
         if reboot:
             subprocess.run(['sudo', 'reboot'])
+
+    def get_wifi_ip(self):
+        try:
+            ip_address = subprocess.check_output(["hostname", "-I"]).decode().split()[0]
+            return ip_address
+        except Exception as e:
+            self.logger.error(f"Error getting WiFi IP address: {e}")
+            return None
+
+    def get_mac_address(self):
+        try:
+            mac_address = subprocess.check_output(["cat", "/sys/class/net/wlan0/address"]).decode().strip()
+            return mac_address
+        except Exception as e:
+            self.logger.error(f"Error getting MAC address: {e}")
+            return None
+
+    def connect_to_wifi(self, ssid, password):
+        try:
+            # Connect to Wi-Fi using nmcli
+            subprocess.run(['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password], check=True)
+
+            # Check if the Wi-Fi connection is successful
+            ip_address = self.get_wifi_ip()
+            if ip_address:
+                self.logger.info(f"Connected to WiFi network {ssid} with IP address {ip_address}")
+                return ip_address
+            else:
+                self.logger.error("Failed to connect to WiFi network")
+                return None
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Error connecting to WiFi network: {e}")
+            return None
+
+    def get_logs(self):
+        try:
+            log_source_dir = "/var/drivesense/logs"
+            log_dest_dir = os.path.join(self.usb_mount_point, "uw-sensor-config", "logs")
+            if not os.path.exists(log_dest_dir):
+                os.makedirs(log_dest_dir)
+            else:
+                shutil.rmtree(log_dest_dir)
+
+            for log_file in os.listdir(log_source_dir):
+                full_log_path = os.path.join(log_source_dir, log_file)
+                if os.path.isfile(full_log_path):
+                    shutil.copy(full_log_path, log_dest_dir)
+
+            self.logger.info(f"Logs copied to {log_dest_dir}")
+        except Exception as e:
+            self.logger.error(f"Error copying logs: {e}")
+
+    def system_config(self, system_config_file):
+        self.status_display.display_header_and_status(header="System Config", status="Applying Configuration...")
+        self.logger.info("Applying system configuration")
+
+        # Parse the file
+        with open(system_config_file, 'r') as f:
+            config = json.load(f)
+        output_dir = os.path.join(self.usb_mount_point, "uw-sensor-config")
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, "__drivesense_system_config_output.json")
+
+        try:
+            output = {}
+            # Get IP address
+            if config["type"] == 'getIP':
+                ip_address = self.get_wifi_ip()
+                if ip_address:
+                    output["status"] = "success"
+                    output["ip"] = ip_address
+                    self.status_display.display_header_and_status(header="System Config", status="IP Obtained")
+                else:
+                    output["status"] = "failed"
+                    self.status_display.display_header_and_status(header="System Config", status="Failed")
+
+            # Connect to Wi-Fi
+            elif config["type"] == 'connectWiFi':
+                ssid = config.get("ssid")
+                if "password" in config:
+                    password = config.get("password")
+                else:
+                    password = ""
+                ip_address = self.connect_to_wifi(ssid, password)
+                if ip_address:
+                    output["status"] = "success"
+                    output["ip"] = ip_address
+                    self.status_display.display_header_and_status(header="System Config", status="Wi-Fi Connected")
+                else:
+                    output["status"] = "failed"
+                    self.status_display.display_header_and_status(header="System Config", status="Failed")
+
+            # Get MAC address
+            elif config["type"] == 'getMAC':
+                mac_address = self.get_mac_address()
+                if mac_address:
+                    output['status'] = 'success'
+                    output['mac'] = mac_address
+                    self.status_display.display_header_and_status(header="System Config", status="MAC Obtained")
+                else:
+                    output['status'] = 'failed'
+                    self.status_display.display_header_and_status(header="System Config", status="Failed")
+
+            # Get all logs
+            elif config["type"] == 'getLogs':
+                self.get_logs()
+                output['status'] = 'success'
+                output['message'] = 'Logs copied successfully'
+                self.status_display.display_header_and_status(header="System Config", status="Logs Copied")
+
+            # Unknown
+            elif config["type"] == 'unknown':
+                output['status'] = 'failed'
+                output["message"] = f"Unknown type - {config['type']}"
+                self.status_display.display_header_and_status(header="System Config", status="Unknown Config Type")
+
+            # Write the output
+            with open(output_file, 'w') as f:
+                json.dump(output, f)
+            time.sleep(2)
+            self.logger.info("System configuration parsed successfully")
+
+        except Exception as e:
+            self.status_display.display_header_and_status(header="System Config", status="Exception occurred")
+            self.logger.error(f"Error getting system configuration: {e}")
+
+        finally:
+            # Clean up
+            if os.path.exists(system_config_file):
+                os.remove(system_config_file)
